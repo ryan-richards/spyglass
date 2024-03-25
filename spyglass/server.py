@@ -11,7 +11,6 @@ import time
 # Global variable to keep track of captured frames
 captured_frames = []
 
-
 PAGE = """\
 <html>
 <head>
@@ -34,6 +33,7 @@ function captureBurst() {
 <img src="/stream" width="640" height="480" />
 <br/>
 <a href="/snapshot" target="_blank"><button>Capture Hi-Res Image</button></a>
+<a href="/frames" target="_blank"><button>View Frames</button></a>
 <button onclick="captureBurst()">Capture Burst</button>
 </body>
 </html>
@@ -77,6 +77,8 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 self.send_snapshot()
             elif self.path == '/capture_burst':
                 self.capture_burst()
+            elif self.path == '/frames':
+                self.send_frames()
             else:
                 self.send_error(404)
                 self.end_headers()
@@ -151,6 +153,23 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b'Burst captured successfully!')
+
+        def send_frames(self):
+            try:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                frames_html = '<html><head><title>Captured Frames</title></head><body>'
+                for idx, frame in enumerate(captured_frames):
+                    with open(f'frame_{idx}.jpg', 'wb') as f:
+                        f.write(frame)
+                    frames_html += f'<img src="/frame_{idx}.jpg" /><br>'
+                frames_html += '</body></html>'
+                self.wfile.write(frames_html.encode('utf-8'))
+            except Exception as e:
+                logging.warning(
+                    'Error sending frames: %s',
+                    str(e))
 
     logging.info('Server listening on %s:%d', bind_address, port)
     logging.info('Streaming endpoint: %s', stream_url)
