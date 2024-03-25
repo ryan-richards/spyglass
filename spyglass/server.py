@@ -14,9 +14,9 @@ PAGE = """\
 </head>
 <body>
 <h1>Picamera2 Streaming</h1>
-<img src="stream.mjpg" width="640" height="480" />
+<img src="/stream" width="640" height="480" />
 <br/>
-<a href="/snapshot"><button>Capture Hi-Res Image</button></a>
+<a href="/snapshot" target="_blank"><button>Capture Hi-Res Image</button></a>
 <a href="/burst"><button>Capture Hi-Res Image Burst</button></a>
 </body>
 </html>
