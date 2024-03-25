@@ -1,3 +1,4 @@
+import os
 import io
 import logging
 import socketserver
@@ -161,7 +162,7 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 self.end_headers()
                 frames_html = '<html><head><title>Captured Frames</title></head><body>'
                 for idx, frame in enumerate(captured_frames):
-                    with open(f'frame_{idx}.jpg', 'wb') as f:
+                    with open(os.path.join(os.getcwd(), f'frame_{idx}.jpg'), 'wb') as f:
                         f.write(frame)
                     frames_html += f'<img src="/frame_{idx}.jpg" /><br>'
                 frames_html += '</body></html>'
