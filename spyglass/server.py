@@ -172,7 +172,7 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                     for idx, frame in enumerate(burst_frames):
                         frame_path = os.path.join(burst_dir, f'frame_{idx}.jpg')
                         with open(frame_path, 'wb') as f:
-                            f.write(frame)
+                            f.write(frame.to_bytes((frame.bit_length() + 7) // 8, byteorder='big'))
                         frames_html += f'<img src="/burst_{burst_num}/frame_{idx}.jpg" /><br>'
                 
                 frames_html += '</body></html>'
@@ -181,6 +181,7 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 logging.warning(
                     'Error sending frames: %s',
                     str(e))
+
 
     logging.info('Server listening on %s:%d', bind_address, port)
     logging.info('Streaming endpoint: %s', stream_url)
