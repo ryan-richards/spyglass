@@ -9,7 +9,6 @@ from spyglass.url_parsing import check_urls_match
 from spyglass.exif import create_exif_header
 from PIL import Image
 import time
-import urllib.parse  # Add this line for the missing import
 
 # Global variable to keep track of captured frames
 captured_frames = []
@@ -20,14 +19,13 @@ PAGE = """\
 <title>picamera2 streaming</title>
 <script>
 function captureBurst() {
-    var burstFrames = document.getElementById("burstFrames").value;
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
             alert("Burst captured successfully!");
         }
     };
-    xhttp.open("GET", "/capture_burst?frames=" + burstFrames, true);
+    xhttp.open("GET", "/capture_burst", true);
     xhttp.send();
 }
 </script>
@@ -37,7 +35,6 @@ function captureBurst() {
 <img src="/stream" width="960" height="540" />
 <br/>
 <a href="/snapshot" target="_blank"><button>Capture Hi-Res Image</button></a>
-<input type="number" id="burstFrames" name="burstFrames" value="5" min="1" max="10">
 <button onclick="captureBurst()">Capture Burst</button>
 </body>
 </html>
@@ -144,30 +141,21 @@ def run_server(bind_address, port, output, stream_url='/stream', snapshot_url='/
         def capture_burst(self):
             global captured_frames
             captured_frames = []
-            
-            # Parse query parameters
-            query_components = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            frames_to_capture = int(query_components.get('frames', ['5'])[0])
-            
-            for i in range(frames_to_capture):
+            for i in range(5):
                 with output.condition:
                     output.condition.wait()
                     captured_frames.append(output.frame)
                 time.sleep(0.5)  # Adjust sleep time if needed
-            
             # Create a new folder with a random number as its name
             folder_name = str(random.randint(0, 1000000))
             os.makedirs(folder_name, exist_ok=True)
-            
             # Save captured frames to the new folder
             for i, frame in enumerate(captured_frames):
                 with open(f'{folder_name}/frame_{i}.jpg', 'wb') as f:
                     f.write(frame)
-            
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b'Burst captured successfully!')
-
 
     logging.info('Server listening on %s:%d', bind_address, port)
     logging.info('Streaming endpoint: %s', stream_url)
