@@ -5,19 +5,36 @@ from http import server
 from threading import Condition
 from spyglass.url_parsing import check_urls_match
 from spyglass.exif import create_exif_header
-from . import logger
+from PIL import Image
+import time
+
+# Global variable to keep track of captured frames
+captured_frames = []
+
 
 PAGE = """\
 <html>
 <head>
 <title>picamera2 streaming</title>
+<script>
+function captureBurst() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            alert("Burst captured successfully!");
+        }
+    };
+    xhttp.open("GET", "/capture_burst", true);
+    xhttp.send();
+}
+</script>
 </head>
 <body>
 <h1>Picamera2 Streaming</h1>
 <img src="/stream" width="640" height="480" />
 <br/>
 <a href="/snapshot" target="_blank"><button>Capture Hi-Res Image</button></a>
-<a href="/burst"><button>Capture Hi-Res Image Burst</button></a>
+<button onclick="captureBurst()">Capture Burst</button>
 </body>
 </html>
 """
@@ -58,8 +75,8 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 self.start_streaming()
             elif check_urls_match(snapshot_url, self.path):
                 self.send_snapshot()
-            elif self.path == '/burst':
-                self.capture_hi_res_image_burst()
+            elif self.path == '/capture_burst':
+                self.capture_burst()
             else:
                 self.send_error(404)
                 self.end_headers()
@@ -109,14 +126,6 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 logging.warning(
                     'Removed client %s: %s',
                     self.client_address, str(e))
-                
-        def capture_hi_res_image_burst(self):
-            picam2.start_and_capture_files("test{:d}.jpg", num_files=5, delay=0.2)
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/html')
-            self.end_headers()
-            response = f"<html><body>High-resolution image burst captured<br><a href='/'>Back</a></body></html>"
-            self.wfile.write(response.encode('utf-8'))
 
         def send_default_headers(self):
             self.send_header('Age', 0)
@@ -127,9 +136,25 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
             self.send_header('Content-Type', 'image/jpeg')
             self.send_header('Content-Length', str(len(frame) + extra_len))
 
-    logger.info('Server listening on %s:%d', bind_address, port)
-    logger.info('Streaming endpoint: %s', stream_url)
-    logger.info('Snapshot endpoint: %s', snapshot_url)
+        def capture_burst(self):
+            global captured_frames
+            captured_frames = []
+            for i in range(5):
+                with output.condition:
+                    output.condition.wait()
+                    captured_frames.append(output.frame)
+                time.sleep(0.5)  # Adjust sleep time if needed
+            # Save captured frames to the file system
+            for i, frame in enumerate(captured_frames):
+                with open(f'frame_{i}.jpg', 'wb') as f:
+                    f.write(frame)
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'Burst captured successfully!')
+
+    logging.info('Server listening on %s:%d', bind_address, port)
+    logging.info('Streaming endpoint: %s', stream_url)
+    logging.info('Snapshot endpoint: %s', snapshot_url)
     address = (bind_address, port)
     current_server = StreamingServer(address, StreamingHandler)
     current_server.serve_forever()
