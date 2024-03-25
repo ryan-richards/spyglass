@@ -1,6 +1,6 @@
 import io
-import datetime
-import time
+import os
+import random
 import logging
 import socketserver
 from http import server
@@ -138,6 +138,7 @@ def run_server(bind_address, port, output, stream_url='/stream', snapshot_url='/
             self.send_header('Content-Type', 'image/jpeg')
             self.send_header('Content-Length', str(len(frame) + extra_len))
 
+
         def capture_burst(self):
             global captured_frames
             captured_frames = []
@@ -146,11 +147,12 @@ def run_server(bind_address, port, output, stream_url='/stream', snapshot_url='/
                     output.condition.wait()
                     captured_frames.append(output.frame)
                 time.sleep(0.5)  # Adjust sleep time if needed
-            # Save captured frames to the file system
-            time.sleep(0.1)  # Add a short delay to ensure uniqueness of filenames
-            current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            # Create a new folder with a random number as its name
+            folder_name = str(random.randint(0, 1000000))
+            os.makedirs(folder_name, exist_ok=True)
+            # Save captured frames to the new folder
             for i, frame in enumerate(captured_frames):
-                with open(f'frame_{current_datetime}_{i}.jpg', 'wb') as f:
+                with open(f'{folder_name}/frame_{i}.jpg', 'wb') as f:
                     f.write(frame)
             self.send_response(200)
             self.end_headers()
