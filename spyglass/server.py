@@ -1,5 +1,6 @@
-import os
 import io
+import datetime
+import time
 import logging
 import socketserver
 from http import server
@@ -56,7 +57,7 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
     daemon_threads = True
 
 
-def run_server(picam2, bind_address, port, output, stream_url='/stream', snapshot_url='/snapshot', orientation_exif=0):
+def run_server(bind_address, port, output, stream_url='/stream', snapshot_url='/snapshot', orientation_exif=0):
     exif_header = create_exif_header(orientation_exif)
 
     class StreamingHandler(server.BaseHTTPRequestHandler):
@@ -78,8 +79,6 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 self.send_snapshot()
             elif self.path == '/capture_burst':
                 self.capture_burst()
-            elif self.path == '/frames':
-                self.send_frames()
             else:
                 self.send_error(404)
                 self.end_headers()
@@ -141,47 +140,21 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
 
         def capture_burst(self):
             global captured_frames
-            # Create a new list to store frames of the current burst
-            current_burst_frames = []
+            captured_frames = []
             for i in range(5):
                 with output.condition:
                     output.condition.wait()
-                    current_burst_frames.append(output.frame)
+                    captured_frames.append(output.frame)
                 time.sleep(0.5)  # Adjust sleep time if needed
-            # Append frames of the current burst to the captured_frames list
-            captured_frames.extend(current_burst_frames)
-            # Save captured frames of the current burst to the file system
-            for i, frame in enumerate(current_burst_frames):
-                with open(f'burst_{len(captured_frames) - len(current_burst_frames) + i}_{i}.jpg', 'wb') as f:
+            # Save captured frames to the file system
+            time.sleep(0.1)  # Add a short delay to ensure uniqueness of filenames
+            current_datetime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            for i, frame in enumerate(captured_frames):
+                with open(f'frame_{current_datetime}_{i}.jpg', 'wb') as f:
                     f.write(frame)
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b'Burst captured successfully!')
-
-        def send_frames(self):
-            try:
-                self.send_response(200)
-                self.send_header('Content-type', 'text/html')
-                self.end_headers()
-                frames_html = '<html><head><title>All Captured Frames</title></head><body>'
-                
-                for burst_num, burst_frames in enumerate(captured_frames):
-                    burst_dir = os.path.join(os.getcwd(), f'burst_{burst_num}')
-                    os.makedirs(burst_dir, exist_ok=True)
-                    
-                    for idx, frame in enumerate(burst_frames):
-                        frame_path = os.path.join(burst_dir, f'frame_{idx}.jpg')
-                        with open(frame_path, 'wb') as f:
-                            f.write(frame.to_bytes((frame.bit_length() + 7) // 8, byteorder='big'))
-                        frames_html += f'<img src="/burst_{burst_num}/frame_{idx}.jpg" /><br>'
-                
-                frames_html += '</body></html>'
-                self.wfile.write(frames_html.encode('utf-8'))
-            except Exception as e:
-                logging.warning(
-                    'Error sending frames: %s',
-                    str(e))
-
 
     logging.info('Server listening on %s:%d', bind_address, port)
     logging.info('Streaming endpoint: %s', stream_url)
