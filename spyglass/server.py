@@ -141,15 +141,18 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
 
         def capture_burst(self):
             global captured_frames
-            captured_frames = []
+            # Create a new list to store frames of the current burst
+            current_burst_frames = []
             for i in range(5):
                 with output.condition:
                     output.condition.wait()
-                    captured_frames.append(output.frame)
+                    current_burst_frames.append(output.frame)
                 time.sleep(0.5)  # Adjust sleep time if needed
-            # Save captured frames to the file system
-            for i, frame in enumerate(captured_frames):
-                with open(f'frame_{i}.jpg', 'wb') as f:
+            # Append frames of the current burst to the captured_frames list
+            captured_frames.extend(current_burst_frames)
+            # Save captured frames of the current burst to the file system
+            for i, frame in enumerate(current_burst_frames):
+                with open(f'burst_{len(captured_frames) - len(current_burst_frames) + i}_{i}.jpg', 'wb') as f:
                     f.write(frame)
             self.send_response(200)
             self.end_headers()
@@ -160,11 +163,18 @@ def run_server(picam2, bind_address, port, output, stream_url='/stream', snapsho
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
-                frames_html = '<html><head><title>Captured Frames</title></head><body>'
-                for idx, frame in enumerate(captured_frames):
-                    with open(os.path.join(os.getcwd(), f'frame_{idx}.jpg'), 'wb') as f:
-                        f.write(frame)
-                    frames_html += f'<img src="/frame_{idx}.jpg" /><br>'
+                frames_html = '<html><head><title>All Captured Frames</title></head><body>'
+                
+                for burst_num, burst_frames in enumerate(captured_frames):
+                    burst_dir = os.path.join(os.getcwd(), f'burst_{burst_num}')
+                    os.makedirs(burst_dir, exist_ok=True)
+                    
+                    for idx, frame in enumerate(burst_frames):
+                        frame_path = os.path.join(burst_dir, f'frame_{idx}.jpg')
+                        with open(frame_path, 'wb') as f:
+                            f.write(frame)
+                        frames_html += f'<img src="/burst_{burst_num}/frame_{idx}.jpg" /><br>'
+                
                 frames_html += '</body></html>'
                 self.wfile.write(frames_html.encode('utf-8'))
             except Exception as e:
