@@ -32,7 +32,7 @@ function captureBurst() {
 </head>
 <body>
 <h1>Picamera2 Streaming</h1>
-<img src="/stream" width="640" height="480" />
+<img src="/stream" width="960" height="540" />
 <br/>
 <a href="/snapshot" target="_blank"><button>Capture Hi-Res Image</button></a>
 <a href="/frames" target="_blank"><button>View Frames</button></a>
