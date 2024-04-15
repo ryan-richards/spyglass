@@ -141,11 +141,11 @@ def run_server(bind_address, port, output, stream_url='/stream', snapshot_url='/
         def capture_burst(self):
             global captured_frames
             captured_frames = []
-            for i in range(5):
+            for i in range(15):
                 with output.condition:
                     output.condition.wait()
                     captured_frames.append(output.frame)
-                time.sleep(0.5)  # Adjust sleep time if needed
+                time.sleep(0.3)  # Adjust sleep time if needed
             # Create a new folder with a random number as its name
             folder_name = str(random.randint(0, 1000000))
             os.makedirs(folder_name, exist_ok=True)
